@@ -1,0 +1,115 @@
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/focal64"
+
+  # VM1 - Nodo principal (balanceador con HAProxy)
+  config.vm.define "vm1" do |vm1|
+    vm1.vm.hostname = "vm1"
+    vm1.vm.network "private_network", ip: "192.168.50.10"
+    vm1.vm.network "forwarded_port", guest: 8404, host: 8404
+    vm1.vm.provider "virtualbox" do |vb|
+      vb.name = "vm1-lxd-haproxy"
+      vb.memory = 1024
+      vb.cpus = 1
+    end
+    vm1.vm.provision "shell", inline: <<-SHELL
+      apt-get update
+      apt-get install -y snapd
+      snap install lxd
+      cat <<EOF | lxd init --preseed
+      config:
+        core.https_address: 192.168.50.12:8443
+      networks: []
+      storage_pools: []
+      profiles:
+      - name: default
+        config: {}
+        description: ""
+      cluster:
+        enabled: true
+        server_name: vm1
+        server_address: "192.168.50.10:8443"
+        cluster_password: "MiClaveSecreta123"
+EOF
+    SHELL
+  end
+
+  # VM2 - Nodo secundario
+  config.vm.define "vm2" do |vm2|
+    vm2.vm.hostname = "vm2"
+    vm2.vm.network "private_network", ip: "192.168.50.11"
+    vm2.vm.provider "virtualbox" do |vb|
+      vb.name = "vm2-lxd-web1"
+      vb.memory = 1024
+      vb.cpus = 1
+    end
+    vm2.vm.provision "shell", inline: <<-SHELL
+      apt-get update
+      apt-get install -y snapd
+      snap install lxd
+      cat <<EOF | lxd init --preseed
+      config:
+        core.https_address: 192.168.50.12:8443
+      cluster:
+        enabled: true
+        server_name: vm2
+        cluster_address: "192.168.50.10:8443"
+        cluster_certificate: |
+          -----BEGIN CERTIFICATE-----
+MIIB/DCCAYGgAwIBAgIRAJQTCMak0fLuRjzj1JwTp+0wCgYIKoZIzj0EAwMwMTEc
+MBoGA1UEChMTbGludXhjb250YWluZXJzLm9yZzERMA8GA1UEAwwIcm9vdEB2bTEw
+HhcNMjUwNDA2MjA0MjE2WhcNMzUwNDA0MjA0MjE2WjAxMRwwGgYDVQQKExNsaW51
+eGNvbnRhaW5lcnMub3JnMREwDwYDVQQDDAhyb290QHZtMTB2MBAGByqGSM49AgEG
+BSuBBAAiA2IABGB2VACoWQuRcAxm3zrhOy0zOwkSj7Cb58a30rRAqau+cFpSGcei
+x9waNgXuLgR9F7uaCtsdcAf3LkdRoSh8dX7RdZfvAgE7C/np/kEl4qYpUvUxmfTc
+2u02o42Ids+mVaNdMFswDgYDVR0PAQH/BAQDAgWgMBMGA1UdJQQMMAoGCCsGAQUF
+BwMBMAwGA1UdEwEB/wQCMAAwJgYDVR0RBB8wHYIDdm0xhwR/AAABhxAAAAAAAAAA
+AAAAAAAAAAABMAoGCCqGSM49BAMDA2kAMGYCMQCHsgnyhiDd4WQ4dM3EPkh9eGg6
+yOhTenisHb1rsl5PGtGjI4EdD2jK+uEJ5SPWlcwCMQDFMnzLq2bQFo0iyL1avJVv
+puZzmAaZHNuRDC8fmyV69llDPSSyRZsR6+71YbTkHAc=
+-----END CERTIFICATE-----
+        server_address: "192.168.50.11:8443"
+        cluster_password: "MiClaveSecreta123"
+EOF
+    SHELL
+  end
+
+  # VM3 - Nodo secundario
+  config.vm.define "vm3" do |vm3|
+    vm3.vm.hostname = "vm3"
+    vm3.vm.network "private_network", ip: "192.168.50.12"
+    vm3.vm.provider "virtualbox" do |vb|
+      vb.name = "vm3-lxd-web2"
+      vb.memory = 1024
+      vb.cpus = 1
+    end
+    vm3.vm.provision "shell", inline: <<-SHELL
+      apt-get update
+      apt-get install -y snapd
+      snap install lxd
+      cat <<EOF | lxd init --preseed
+      config:
+        core.https_address: 192.168.50.12:8443
+      cluster:
+        enabled: true
+        server_name: vm3
+        cluster_address: "192.168.50.10:8443"
+        cluster_certificate: |
+          -----BEGIN CERTIFICATE-----
+MIIB/DCCAYGgAwIBAgIRAJQTCMak0fLuRjzj1JwTp+0wCgYIKoZIzj0EAwMwMTEc
+MBoGA1UEChMTbGludXhjb250YWluZXJzLm9yZzERMA8GA1UEAwwIcm9vdEB2bTEw
+HhcNMjUwNDA2MjA0MjE2WhcNMzUwNDA0MjA0MjE2WjAxMRwwGgYDVQQKExNsaW51
+eGNvbnRhaW5lcnMub3JnMREwDwYDVQQDDAhyb290QHZtMTB2MBAGByqGSM49AgEG
+BSuBBAAiA2IABGB2VACoWQuRcAxm3zrhOy0zOwkSj7Cb58a30rRAqau+cFpSGcei
+x9waNgXuLgR9F7uaCtsdcAf3LkdRoSh8dX7RdZfvAgE7C/np/kEl4qYpUvUxmfTc
+2u02o42Ids+mVaNdMFswDgYDVR0PAQH/BAQDAgWgMBMGA1UdJQQMMAoGCCsGAQUF
+BwMBMAwGA1UdEwEB/wQCMAAwJgYDVR0RBB8wHYIDdm0xhwR/AAABhxAAAAAAAAAA
+AAAAAAAAAAABMAoGCCqGSM49BAMDA2kAMGYCMQCHsgnyhiDd4WQ4dM3EPkh9eGg6
+yOhTenisHb1rsl5PGtGjI4EdD2jK+uEJ5SPWlcwCMQDFMnzLq2bQFo0iyL1avJVv
+puZzmAaZHNuRDC8fmyV69llDPSSyRZsR6+71YbTkHAc=
+-----END CERTIFICATE-----
+        server_address: "192.168.50.12:8443"
+        cluster_password: "MiClaveSecreta123"
+EOF
+    SHELL
+  end
+end
