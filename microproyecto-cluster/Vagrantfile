@@ -6,6 +6,7 @@ Vagrant.configure("2") do |config|
     vm1.vm.hostname = "vm1"
     vm1.vm.network "private_network", ip: "192.168.50.10"
     vm1.vm.network "forwarded_port", guest: 8404, host: 8404
+    vm1.vm.network "forwarded_port", guest: 80, host: 8080
     vm1.vm.provider "virtualbox" do |vb|
       vb.name = "vm1-lxd-haproxy"
       vb.memory = 1024
